@@ -1,0 +1,148 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "TBPanel"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 420, 0, 300)
+Frame.Position = UDim2.new(0.5, -210, 0.5, -150)
+Frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Frame.BorderSizePixel = 3
+Frame.BorderColor3 = Color3.fromRGB(255, 0, 0)
+Frame.Parent = ScreenGui
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+Title.BorderSizePixel = 0
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBlack
+Title.TextSize = 26
+Title.RichText = true
+Title.Text = "<font color='#000000'>T</font><font color='#FF0000'>B</font>"
+Title.Parent = Frame
+
+-- ScrollingFrame to contain the TextBox
+local ScrollContainer = Instance.new("ScrollingFrame")
+ScrollContainer.Size = UDim2.new(1, -20, 1, -100)
+ScrollContainer.Position = UDim2.new(0, 10, 0, 50)
+ScrollContainer.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+ScrollContainer.BorderSizePixel = 0
+ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, 0) -- Adjusted dynamically
+ScrollContainer.ScrollBarThickness = 6
+ScrollContainer.Parent = Frame
+
+local UIListLayout = Instance.new("UIListLayout")
+UIListLayout.Parent = ScrollContainer
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+UIListLayout.Padding = UDim.new(0, 0)
+
+local TextBox = Instance.new("TextBox")
+TextBox.Size = UDim2.new(1, -10, 0, 200) -- initial height, can increase
+TextBox.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+TextBox.PlaceholderText = "Área de texto (escreva seu script aqui)"
+TextBox.Font = Enum.Font.SourceSans
+TextBox.TextSize = 18
+TextBox.ClearTextOnFocus = false
+TextBox.MultiLine = true
+TextBox.TextWrapped = true
+TextBox.TextYAlignment = Enum.TextYAlignment.Top
+TextBox.Parent = ScrollContainer
+
+TextBox:GetPropertyChangedSignal("Text"):Connect(function()
+    local textHeight = TextBox.TextBounds.Y
+    local newHeight = math.max(200, textHeight + 20)
+    TextBox.Size = UDim2.new(1, -10, 0, newHeight)
+    ScrollContainer.CanvasSize = UDim2.new(0, 0, 0, newHeight)
+end)
+
+local ExecuteButton = Instance.new("TextButton")
+ExecuteButton.Size = UDim2.new(0, 100, 0, 30)
+ExecuteButton.Position = UDim2.new(0, 10, 1, -40)
+ExecuteButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ExecuteButton.BorderSizePixel = 2
+ExecuteButton.BorderColor3 = Color3.fromRGB(255, 0, 0)
+ExecuteButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ExecuteButton.Font = Enum.Font.SourceSansBold
+ExecuteButton.TextSize = 20
+ExecuteButton.Text = "Executar"
+ExecuteButton.Parent = Frame
+
+local ClearButton = Instance.new("TextButton")
+ClearButton.Size = UDim2.new(0, 100, 0, 30)
+ClearButton.Position = UDim2.new(1, -110, 1, -40)
+ClearButton.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+ClearButton.BorderSizePixel = 2
+ClearButton.BorderColor3 = Color3.fromRGB(255, 0, 0)
+ClearButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ClearButton.Font = Enum.Font.SourceSansBold
+ClearButton.TextSize = 20
+ClearButton.Text = "Limpar"
+ClearButton.Parent = Frame
+
+ClearButton.MouseButton1Click:Connect(function()
+    TextBox.Text = ""
+end)
+
+ExecuteButton.MouseButton1Click:Connect(function()
+    local scriptText = TextBox.Text
+    local func, err = loadstring(scriptText)
+    if not func then
+        warn("Erro na compilação do script: "..err)
+        return
+    end
+    local success, execErr = pcall(func)
+    if not success then
+        warn("Erro na execução do script: "..execErr)
+    else
+        print("Script executado com sucesso!")
+    end
+end)
+
+local dragging = false
+local dragInput, mousePos, framePos
+
+local function update(input)
+    local delta = input.Position - mousePos
+    local newPos = UDim2.new(
+        framePos.X.Scale,
+        framePos.X.Offset + delta.X,
+        framePos.Y.Scale,
+        framePos.Y.Offset + delta.Y
+    )
+    local tween = TweenService:Create(Frame, TweenInfo.new(0.1), {Position = newPos})
+    tween:Play()
+end
+
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        mousePos = input.Position
+        framePos = Frame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
